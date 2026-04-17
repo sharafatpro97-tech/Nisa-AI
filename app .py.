@@ -1,0 +1,43 @@
+import streamlit as st
+from langchain_openai import ChatOpenAI
+from langchain.agents import load_tools, initialize_agent, AgentType
+
+# 1. Setup Page Title
+st.set_page_config(page_title="Nisa AI", page_icon="🤖")
+st.title("Meet Nisa")
+st.subheader("Your AI Assistant with Google Search")
+
+# 2. Get API Keys (From Streamlit Secrets when online)
+try:
+    openai_key = st.secrets["OPENAI_API_KEY"]
+    serper_key = st.secrets["SERPER_API_KEY"]
+except:
+    st.error("Please set your API keys in Streamlit Secrets!")
+    st.stop()
+
+# 3. Initialize Nisa's Brain & Tools
+llm = ChatOpenAI(model="gpt-3.5-turbo", openai_api_key=openai_key)
+tools = load_tools(["google-serper"], serper_api_key=serper_key, llm=llm)
+nisa = initialize_agent(tools, llm, agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION)
+
+# 4. Chat Interface
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+# Display old messages
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+# User Input
+if prompt := st.chat_input("Ask Nisa anything..."):
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.markdown(prompt)
+
+    with st.chat_message("assistant"):
+        # Nisa's reasoning
+        full_prompt = f"Your name is Nisa. You are a helpful AI. User says: {prompt}"
+        response = nisa.run(full_prompt)
+        st.markdown(response)
+        st.session_state.messages.append({"role": "assistant", "content": response})
